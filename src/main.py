@@ -32,12 +32,12 @@ if __name__ == "__main__":
     show_warning = True
     for startline, paca in out_pack.items():
         if paca and show_warning:
-            print("WARNING !! some packages appear to be out of date. This could block the build of docker image")
-            print("Check the corresponding versions for the following packages:")
+            print("***** WARNING !! some packages appear to be out of date. This could block the build of docker image")
+            print("***** Check the corresponding versions for the following packages:")
             show_warning = False
         if paca:
             for pa, vers in paca.items():
-                print(f"Stage start at line {startline}, {pa}: {vers[0]} -> {vers[1]}")
+                print(f"***** Stage start at line {startline}, {pa}: {vers[0]} -> {vers[1]}")
                 # continue
     if show_warning is False:
         sys.exit(1)
