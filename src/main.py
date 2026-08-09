@@ -1,5 +1,6 @@
 # ENTER ONE LINE DESCRIPTION HERE
 import sys
+import os
 
 
 from scripts.manager_process import compare_all_packages, download_all_depot
@@ -8,7 +9,9 @@ from scripts.parser import parser
 
 if __name__ == "__main__":
 
-    filePath = sys.argv[1] if len(sys.argv) > 1 else "Dockerfile"
+    dockerfile = sys.argv[1]
+    filePath = os.path.join(os.environ["GITHUB_WORKSPACE"],dockerfile)
+    # filePath = sys.argv[1] if len(sys.argv) > 1 else "Dockerfile"
 
     # Parse Dockerfile for extract data
     commandsliste = parser(filePath).cmdlist
