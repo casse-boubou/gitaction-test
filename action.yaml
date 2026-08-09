@@ -19,7 +19,6 @@ runs:
       name: Install python
       with:
         python-version: '3.14'
-        cache: 'pip'
 
     - name: Install python requirements
       shell: bash
