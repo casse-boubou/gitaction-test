@@ -23,6 +23,7 @@ def search_variable_version(parsedcommands, variable):
 def dig_into_image(source, version):
     """Search for base source of image"""
     image = f"{source}:{version}"
+    print(f"11111111111111111111111111 {image}")
     syft_cmd = ("/usr/local/Cellar/syft/1.50.0/bin/syft", "scan", f"{image}", "--output", "template", "--template", "src/scripts/schema-latest.go")
     print(f"Wait, searching for the base image of {image} in progress...")
     scan = subprocess.run(syft_cmd, capture_output=True, check=True, text=True)
