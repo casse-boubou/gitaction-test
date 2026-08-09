@@ -7,11 +7,14 @@ inputs:
     required: true
     default: ""
 branding:
-  icon: "terminal"
-  color: "gray-dark"
+  # icon: "terminal"
+  # color: "gray-dark"
+  icon: 'code'
+  color: 'yellow'
 runs:
   using: "composite"
   steps:
+    - uses: actions/checkout@v7
     - uses: actions/setup-python@v7
       name: Install python
       with:
@@ -27,7 +30,7 @@ runs:
       shell: bash
       env:
         DOCKERFILE: ${{ inputs.dockerfile }}
-      run: pip install -r src/requirements.txt
+      run: python3 src/main.py "$DOCKERFILE"
 
     - name: Exit action
       shell: bash
