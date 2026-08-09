@@ -41,6 +41,3 @@ if __name__ == "__main__":
                 # continue
     if show_warning is False:
         sys.exit(1)
-
-
-    print("0")
