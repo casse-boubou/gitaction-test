@@ -1,6 +1,6 @@
 # Docker Pinned Package Checker
 
-<ins>[Français](README.fr.md)</ins>
+<ins>[Français](README.md)</ins>
 <ins>[English](README.en.md)</ins>
 
 ## À propos
