@@ -31,6 +31,10 @@ runs:
 
     - name: print directory
       shell: bash
+      run: ls -l $GITHUB_PATH
+
+    - name: print directory
+      shell: bash
       run: ls -l $GITHUB_ACTION_PATH
 
     - name: print directory
