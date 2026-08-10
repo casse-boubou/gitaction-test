@@ -29,6 +29,14 @@ runs:
       shell: bash
       run: curl -sSfL https://get.anchore.io/syft | sudo sh -s -- -b /usr/local/bin
 
+    - name: print directory
+      shell: bash
+      run: ls -l $GITHUB_ACTION_PATH
+
+    - name: print directory
+      shell: bash
+      run: ls -l /home/runner/work/_temp/_runner_file_commands/add_path*
+
     - name: Run the check
       id: check
       shell: bash
