@@ -1,38 +1,38 @@
-# download_depo.py - Download an updated depot from source
+# manager_process.py - Orchestrates, for every stage found in the Dockerfile,
+# downloading the matching distribution package index and comparing pinned package
+# versions against it.
 
 import importlib
 
 
-def download_all_depot(data):
-    """Download a fresh version of multiple depot"""
+def download_all_package_indexes(dataset):
+    """Download a fresh package index for every distrib/version referenced by
+    any stage in the dataset."""
     # Separate each stage of Dockerfile
-    for value in data.values():
-        if value:
-            # print(value)
-            # [['alpine', '3.24', {'cargo': '1.96.1-r0', 'git': '2.54.0-r0'}], ['alpine', '3.23', {'phase': '1.96.1-r0', 'seconde': '2.54.0-r0'}]]
+    for stage_entries in dataset.values():
+        if stage_entries:
             # Process for each stage
-            for stage in value:
-                # print(stage)
-                # ['alpine', '3.24', {'cargo': '1.96.1-r0', 'git': '2.54.0-r0'}]
-                distroname = stage[0]
-                versionname = stage[1]
+            for stage_entry in stage_entries:
+                distrib_name = stage_entry[0]
+                distrib_version = stage_entry[1]
 
                 # Download the depot
-                extractfunct = importlib.import_module(f"distros.{distroname}")
-                extractfunct.download_fresh_depot(distroname, versionname)
+                distrib_module = importlib.import_module(f"distros.{distrib_name}")
+                distrib_module.download_package_index(distrib_name, distrib_version)
 
 
-def compare_all_packages(data):
-    """Compare the version of package between Dockerfile and archive"""
+def find_all_outdated_packages(dataset):
+    """Compare the pinned package versions of every stage against the
+    downloaded archive."""
     # Separate each stage of Dockerfile
 
     all_outdated_packages = {}
-    for value in data.values():
-        for stage in value:
-            distroname = stage[0]
-            versionname = stage[1]
-            packagespack = stage[2]
-            extractfunct = importlib.import_module(f"distros.{distroname}")
-            outdated_packages = extractfunct.compare(distroname, versionname, packagespack)
-            all_outdated_packages[stage[4]] = outdated_packages
+    for stage_entries in dataset.values():
+        for stage_entry in stage_entries:
+            distrib_name = stage_entry[0]
+            distrib_version = stage_entry[1]
+            pinned_packages = stage_entry[2]
+            distrib_module = importlib.import_module(f"distros.{distrib_name}")
+            outdated_for_stage = distrib_module.find_outdated_packages(distrib_name, distrib_version, pinned_packages)
+            all_outdated_packages[stage_entry[4]] = outdated_for_stage
     return all_outdated_packages

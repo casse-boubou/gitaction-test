@@ -1,9 +1,9 @@
-name: "Docker Check"
+name: "Docker Pinned Package Checker"
 author: "XXXXXXXXXXXX"
-description: "XXXXXXXXXXXX"
+description: "Scans a Dockerfile for packages pinned to a fixed version and fails the workflow if a newer version is available in the base image's official Debian, Ubuntu, Alpine, ... repository."
 inputs:
   dockerfile:
-    description: "Path for the Dockerfile to analyse"
+    description: "Path, relative to the repository root ($GITHUB_WORKSPACE), of the Dockerfile to analyse."
     required: true
     default: ""
 branding:

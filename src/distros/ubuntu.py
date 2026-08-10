@@ -1,4 +1,6 @@
-# ubuntu.py - Fonctions available for an ubuntu docker image
+# ubuntu.py - Resolves the Ubuntu codename, downloads the matching Packages
+# indexes, and compares pinned package versions against them
+
 import gzip
 import json
 import lzma
@@ -7,59 +9,61 @@ import re
 from pathlib import Path
 
 import requests
-from scripts.enum_class import LatestSource, UbuntuRelease
+from scripts.enum_class import LatestDistribVersion, UbuntuCodename
 from tqdm import tqdm
 
 
-def catch_version(version):
-    """Download the name of the version like it is in archive server"""
+def resolve_target_version(version):
+    """Turn a Dockerfile version string ('latest', '24.04'...) into the
+    Ubuntu codename used by the archive server (e.g. 'noble')."""
     if version == "latest":
-        version = str(LatestSource.search_value("ubuntu"))
+        version = str(LatestDistribVersion.value_for_name("ubuntu"))
     version_match = re.search(
         r"(?P<major>[0-9]+.[0-9]+).?(?:.*)",
         version)
     if version_match:
         version = float(version_match.group('major'))
-    return UbuntuRelease.search_key(version).lower()
+    return UbuntuCodename.name_for_value(version).lower()
 
-def define_path(distribution=None , version=None, repository=None, component=None, packages_extention=None):
-    """Determine many folderpath in one place"""
-    directory_name = f"src/temp/{distribution}/{version}/{repository}"
-    srcfilepath = f"src/temp/{distribution}/{version}/{repository}/{component}.{packages_extention}"
-    destfilepath = f"src/temp/{distribution}/{version}/{repository}/{component}"
-    archivespath = f"src/temp/{distribution}/{version}/{repository}"
-    return directory_name, srcfilepath, destfilepath, archivespath
+def build_repo_paths(distribution=None, version=None, pocket=None, component=None, archive_extension=None):
+    """Build the paths used to store and extract repository."""
+    temp_dir_path = f"src/temp/{distribution}/{version}/{pocket}"
+    archive_path = f"src/temp/{distribution}/{version}/{pocket}/{component}.{archive_extension}"
+    extracted_json_path = f"src/temp/{distribution}/{version}/{pocket}/{component}"
+    pocket_dir_path = f"src/temp/{distribution}/{version}/{pocket}"
+    return temp_dir_path, archive_path, extracted_json_path, pocket_dir_path
 
 
-def extract_archive(source, destination_file):
-    """Extract an archive and save they packages and version content"""
-    packages = {}
-    pkg_bloc = {}
-    for line in source:
+def parse_packages_to_json(packages_stream, output_json_path):
+    """Read an archive file and write a {package: version} JSON
+    file built from its Package/Version fields."""
+    package_versions = {}
+    entry_buffer = {}
+    for line in packages_stream:
         line = line.rstrip("\n")
 
         if ": " in line:
             key, value = line.split(": ", 1)
             if key in ('Package', 'Version'):
-                pkg_bloc[key] = value
+                entry_buffer[key] = value
 
         if not line:
-            packages[pkg_bloc["Package"]] = pkg_bloc["Version"]
-            pkg_bloc = {}
+            package_versions[entry_buffer["Package"]] = entry_buffer["Version"]
+            entry_buffer = {}
             continue
 
-    with open(destination_file, "wt", encoding="utf-8") as destination:
-        json.dump(packages, destination, indent=2)
+    with open(output_json_path, "wt", encoding="utf-8") as destination:
+        json.dump(package_versions, destination, indent=2)
 
 
-def download_file_with_progress(url, save_path, ubuntu_version, pocket, component, chunk_size=1024):
-    """Download a file and print a progress bar"""
+def download_with_progress_bar(url, destination_path, resolved_version, pocket, component, chunk_size=1024):
+    """Stream-download a file to disk while displaying a progress bar."""
     with requests.get(url, stream=True, timeout=20) as response:
         response.raise_for_status()
         total_size = int(response.headers.get("Content-Length", 0))
 
         # Initialize tqdm progress bar
-        desc = f"Downloading ubuntu {ubuntu_version} {pocket} {component}"
+        desc = f"Downloading ubuntu {resolved_version} {pocket} {component}"
         desc = f"{desc:<50.50}"
         progress_bar = tqdm(
             desc=desc,
@@ -72,98 +76,100 @@ def download_file_with_progress(url, save_path, ubuntu_version, pocket, componen
             bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]",
         )
 
-        with open(save_path, "wb") as file:
+        with open(destination_path, "wb") as output_file:
             for chunk in response.iter_content(chunk_size=chunk_size):
                 if chunk:
-                    file.write(chunk)
+                    output_file.write(chunk)
                     # Update progress bar by chunk size
                     progress_bar.update(len(chunk))
 
         progress_bar.close()
 
 
-def download_fresh_depot(distribution, version):
-    """Download a fresh version of ubuntu depot"""
-    pockets = ["base", "updates", "security", "backports"]
-    components = ["main", "restricted", "universe", "multiverse"]
+def download_package_index(distribution, version):
+    """Download and extract the archive of every repository
+    skipping files already on disk."""
+    pockets_names = ["base", "updates", "security", "backports"]
+    components_names = ["main", "restricted", "universe", "multiverse"]
 
-    # Catch ubuntu version
-    ubuntu_version = catch_version(version)
+    # Catch Ubuntu codename
+    resolved_version = resolve_target_version(version)
 
     # Create Directory for version/pocket
-    for pocket in pockets:
-        directory_name = define_path(distribution=distribution, version=ubuntu_version, repository=pocket)[0]
+    for pocket in pockets_names:
+        temp_dir_path = build_repo_paths(distribution=distribution, version=resolved_version, pocket=pocket)[0]
         try:
-            os.makedirs(directory_name)
-            # print(f"Directory '{directory_name}' created successfully.")
+            os.makedirs(temp_dir_path)
+            # print(f"Directory '{temp_dir_path}' created successfully.")
         except FileExistsError:
-            # print(f"Directory '{directory_name}' already exists.")
+            # print(f"Directory '{temp_dir_path}' already exists.")
             pass
         except PermissionError:
-            # print(f"Permission denied: Unable to create '{directory_name}'.")
+            # print(f"Permission denied: Unable to create '{temp_dir_path}'.")
             pass
         except Exception as e:
             print(f"An error occurred: {e}")
 
 
-    packages_ext = "xz"
+    archive_extension = "xz"
     # Create list of URL where download archives
-    urls = {}
-    for pocket in pockets:
-        urls[pocket] = {}
-        for component in components:
+    download_urls = {}
+    for pocket in pockets_names:
+        download_urls[pocket] = {}
+        for component in components_names:
             if pocket == "base":
-                url = f"http://archive.ubuntu.com/ubuntu/dists/{ubuntu_version}/{component}/binary-amd64/Packages.{packages_ext}"
-                urls[pocket][component] = url
+                url = f"http://archive.ubuntu.com/ubuntu/dists/{resolved_version}/{component}/binary-amd64/Packages.{archive_extension}"
+                download_urls[pocket][component] = url
             else:
-                url = f"http://archive.ubuntu.com/ubuntu/dists/{ubuntu_version}-{pocket}/{component}/binary-amd64/Packages.{packages_ext}"
-                urls[pocket][component] = url
+                url = f"http://archive.ubuntu.com/ubuntu/dists/{resolved_version}-{pocket}/{component}/binary-amd64/Packages.{archive_extension}"
+                download_urls[pocket][component] = url
 
     # Download and extract archive if not exist
-    for pocket, components in urls.items():
+    for pocket, components in download_urls.items():
         for component, url in components.items():
-            srcfilepath = define_path(distribution, ubuntu_version, pocket, component, packages_ext)[1]
-            destfilepath = define_path(distribution, ubuntu_version, pocket, component)[2]
-            fiile = Path(srcfilepath)
-            if not fiile.exists():
+            archive_path = build_repo_paths(distribution, resolved_version, pocket, component, archive_extension)[1]
+            extracted_json_path = build_repo_paths(distribution, resolved_version, pocket, component)[2]
+            archive_file = Path(archive_path)
+            if not archive_file.exists():
 
                 # Download archive
-                download_file_with_progress(url, srcfilepath, ubuntu_version, pocket, component)
+                download_with_progress_bar(url, archive_path, resolved_version, pocket, component)
 
                 # Extract archive
-                if srcfilepath.endswith(".gz"):
-                    with gzip.open(srcfilepath, "rt", encoding="utf-8") as source:
-                        extract_archive(source, destfilepath)
-                elif srcfilepath.endswith(".xz"):
-                    with lzma.open(srcfilepath, "rt", encoding="utf-8") as source:
-                        extract_archive(source, destfilepath)
+                if archive_path.endswith(".gz"):
+                    with gzip.open(archive_path, "rt", encoding="utf-8") as archive_stream:
+                        parse_packages_to_json(archive_stream, extracted_json_path)
+                elif archive_path.endswith(".xz"):
+                    with lzma.open(archive_path, "rt", encoding="utf-8") as archive_stream:
+                        parse_packages_to_json(archive_stream, extracted_json_path)
 
 
-def compare(distribution, version, packages):
-    """Compare the version of package between Dockerfile and archive"""
-    pockets = ["base", "updates", "security", "backports"]
-    components = ["main", "restricted", "universe", "multiverse"]
+def find_outdated_packages(distribution, version, pinned_packages):
+    """Compare the versions pinned in the Dockerfile against the versions
+    found in the downloaded archive."""
+    pockets_names = ["base", "updates", "security", "backports"]
+    components_names = ["main", "restricted", "universe", "multiverse"]
 
-    # Catch alpine version
-    ubuntu_version = catch_version(version)
+    # Catch Ubuntu codename
+    resolved_version = resolve_target_version(version)
 
-    outdated_packages = {}
-    for pocket in pockets:
-        for component in components:
-            filefolder = define_path(distribution, ubuntu_version, pocket)[3]
-            filepath = f"{filefolder}/{component}"
-            file = Path(filepath)
-            if file.exists():
-                with open(file, "rt", encoding="utf-8") as archive:
+    outdated_versions_found = {}
+    for pocket in pockets_names:
+        for component in components_names:
+            pocket_dir_path = build_repo_paths(distribution, resolved_version, pocket)[3]
+            component_file_path = f"{pocket_dir_path}/{component}"
+            component_file = Path(component_file_path)
+            if component_file.exists():
+                with open(component_file, "rt", encoding="utf-8") as archive:
                     for line in archive:
-                        for package, value in packages.items():
-                            if f"\"{package}\"" in line:
+                        for package_name, pinned_version in pinned_packages.items():
+                            if f"\"{package_name}\"" in line:
                                 version_match = re.search(
                                     r"(?:.*):\s\"(?P<version>.*)\",",
                                     line)
                                 if version_match:
-                                    repo_version = version_match.group('version')
-                                    if repo_version != value:
-                                        outdated_packages[package] = [value, repo_version]
+                                    repository_version = version_match.group('version')
+                                    if repository_version != pinned_version:
+                                        outdated_versions_found[package_name] = [pinned_version, repository_version]
                                 continue
-    return outdated_packages
+    return outdated_versions_found

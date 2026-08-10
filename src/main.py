@@ -1,43 +1,40 @@
-# ENTER ONE LINE DESCRIPTION HERE
+# Docker Check - Entry point: parses a Dockerfile, downloads the reference
+# package archives for its base images, and reports any pinned package
+# version that is out of date.
+
 import sys
 
-
-from scripts.manager_process import compare_all_packages, download_all_depot
-from scripts.extract_datas import extract_data
-from scripts.parser import parser
+from scripts.extract_datas import extract_dataset
+from scripts.manager_process import (
+    download_all_package_indexes,
+    find_all_outdated_packages,
+)
+from scripts.parser import parse_dockerfile
 
 if __name__ == "__main__":
 
-    filePath = sys.argv[1] if len(sys.argv) > 1 else "Dockerfile"
+    dockerfile_path = sys.argv[1] if len(sys.argv) > 1 else "Dockerfile"
 
     # Parse Dockerfile for extract data
-    commandsliste = parser(filePath).cmdlist
+    instructionsliste = parse_dockerfile(dockerfile_path).instruction_list
 
     # Check and extract if pinned package is present in Dockerfile
-    data = extract_data(commandsliste)
-    # print (f"DATA {data}")
-    # {'apk': [
-    #     ['alpine', '3.24', {'cargo': '1.96.1-r0', 'git': '2.54.0-r0'}, 'RUN', 6],
-    #     ['alpine', '3.23', {'cargo': '1.96.1-r0', 'git': '2.54.0-r0'}, 'RUN', 12],
-    #     ['alpine', '3.22', {'cargo': '1.96.1-r0', 'git': '2.54.0-r0'}, 'RUN', 34]
-    #     ]}
+    dataset = extract_dataset(instructionsliste)
 
     # Download a fresh version of depot for each version of distribution
-    download_all_depot(data)
+    download_all_package_indexes(dataset)
 
     # Compare version for each packages
-    out_pack = compare_all_packages(data)
-    # print(out_pack)
-    # {6: {}, 12: {'cargo': ['1.96.1-r0', '1.91.1-r2'], 'git': ['2.54.0-r0', '2.52.0-r0']}, 34: {'cargo': ['1.96.1-r0', '1.87.0-r1'], 'git': ['2.54.0-r0', '2.49.1-r0']}}
+    all_outdated_packages = find_all_outdated_packages(dataset)
     show_warning = True
-    for startline, paca in out_pack.items():
-        if paca and show_warning:
+    for start_line, outdated_packages in all_outdated_packages.items():
+        if outdated_packages and show_warning:
             print("***** WARNING !! some packages appear to be out of date. This could block the build of docker image")
             print("***** Check the corresponding versions for the following packages:")
             show_warning = False
-        if paca:
-            for pa, vers in paca.items():
-                print(f"***** Stage start at line {startline}, {pa}: {vers[0]} -> {vers[1]}")
+        if outdated_packages:
+            for package_name, versions in outdated_packages.items():
+                print(f"***** Stage start at line {start_line}, {package_name}: {versions[0]} -> {versions[1]}")
                 # continue
     if show_warning is False:
         sys.exit(1)

@@ -1,35 +1,36 @@
-# enum_class.py - Define some Enum class here
+# enum_class.py - Base Enum class with generic lookup helpers
 
 from enum import Enum
 
-class SuperEnum(Enum):
-    """Parent class for define funct for other class"""
+
+class LookupEnum(Enum):
+    """Parent class providing shared helper methods reused by every enum below."""
     @classmethod
-    def to_dict(cls):
+    def as_dict(cls):
         """Returns a dictionary representation of the enum."""
         return {e.name: e.value for e in cls}
 
     @classmethod
     def listkeys(cls):
-        """Returns a list of all the enum keys names."""
+        """Returns a list of all the enum member names."""
         return cls._member_names_
 
     @classmethod
     def listvalues(cls):
-        """Returns a list of all the enum values."""
+        """Returns a list of all the enum member values."""
         return list(cls._value2member_map_.keys())
 
     @classmethod
-    def search_key(cls, value):
-        """Returns key name assigned to a value"""
+    def name_for_value(cls, value):
+        """Returns the member name matching the given value."""
         for i in cls:
             if i.value == value:
                 return i.name
         return print(f"Sorry, no name key associated with value={value}")
 
     @classmethod
-    def search_value(cls, name):
-        """Returns value assigned to a key name"""
+    def value_for_name(cls, name):
+        """Returns the value of the member matching the given name."""
         for i in cls:
             if i.name == name.upper():
                 return i.value
@@ -41,28 +42,28 @@ class SuperEnum(Enum):
 
 
 
-class LatestSource(SuperEnum):
-    """Class enumerat the image source supported by this soft"""
+class LatestDistribVersion(LookupEnum):
+    """Version to use for each distribution when the Dockerfile requests the 'latest' tag."""
     ALPINE = 3.24
     UBUNTU = 26.04
     DEBIAN = 13
 
 
-class SupportedSource(SuperEnum):
-    """Class enumerat the image source supported by this soft"""
+class SupportedDistribution(LookupEnum):
+    """Distributions natively handled by this tool."""
     ALPINE = 1
     UBUNTU = 2
     DEBIAN = 3
 
 
-class SupportedPackages(SuperEnum):
-    """Class enumerat the image source supported by this soft"""
+class SupportedPackageManager(LookupEnum):
+    """Package managers natively handled by this tool."""
     APK = 1
     APT = 2
 
 
-class DockerCommand(SuperEnum):
-    """Class representing the type of command in Dockerfile"""
+class DockerCommand(LookupEnum):
+    """Every Dockerfile instruction keyword recognized by the parser."""
     ADD = 1
     ARG = 2
     CMD = 3
@@ -83,8 +84,8 @@ class DockerCommand(SuperEnum):
     WORKDIR = 18
 
 
-class UbuntuRelease(SuperEnum):
-    """Class associate name with version of Ubuntu"""
+class UbuntuCodename(LookupEnum):
+    """Maps each Ubuntu release number to its codename (e.g. 24.04 -> NOBLE)."""
     BIONIC = 18.04
     COSMIC = 18.10
     DISCO = 19.04
@@ -105,8 +106,8 @@ class UbuntuRelease(SuperEnum):
     STONKING = 26.10
 
 
-class DebianRelease(SuperEnum):
-    """Class associate name with version of Debian"""
+class DebianCodename(LookupEnum):
+    """Maps each Debian major version to its codename (e.g. 12 -> BOOKWORM)."""
     BULLSEYE = 11
     BOOKWORM = 12
     TRIXIE = 13

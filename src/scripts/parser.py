@@ -1,109 +1,109 @@
 # THANKS to asottile https://github.com/asottile https://github.com/asottile-archive/dockerfile/tree/main
-# parser.py - Parse a Dockerfile
+# parser.py - Parses a Dockerfile into a flat, ordered list of instructions.
+
 from scripts.enum_class import DockerCommand
 
 
-class CommandLine:
-    """Class representing the line found in Dockerfile"""
-    def __init__(self, uid, cmd: DockerCommand, startline, endline, stage: dict[any], instructions):
-        self.uid = uid
-        self.cmd = cmd
-        self.startline = startline
-        self.endline = endline
-        self.stage = stage
-        self.instructions = instructions
+class DockerfileInstruction:
+    """A single Dockerfile instruction (FROM, RUN, ...)."""
+    def __init__(self, instruction_id, command: DockerCommand, start_line, end_line, stage_infos: dict[any], instruction_text):
+        self.instruction_id = instruction_id
+        self.command = command
+        self.start_line = start_line
+        self.end_line = end_line
+        self.stage_infos = stage_infos
+        self.instruction_text = instruction_text
 
     def __str__(self):
         # for use with print(t)
-        return f"ID: {self.uid} Command:{self.cmd} StartLine:{self.startline} EndLine:{self.endline} Stage:{self.stage} Instruction:{self.instructions}"
+        return f"ID: {self.instruction_id} Command:{self.command} StartLine:{self.start_line} EndLine:{self.end_line} Stage:{self.stage_infos} Instruction:{self.instruction_text}"
 
 
 
-class ParsingFile:
-    """Class representing the Dockerfile"""
+class DockerfileParsed:
+    """Ordered collection of every instruction found while parsing a Dockerfile."""
     def __init__(self):
-        self.cmdlist = []
+        self.instruction_list = []
 
     def __str__(self):
         # for use with print(t)
         export = "Your object contain multiple Class Object:"
-        for c in self.cmdlist:
-            itemhumainreadable = f"(ID: {c.uid}, Command: {c.cmd}, StartLine: {c.startline}, EndLine: {c.endline}, Stage: {c.stage}, Instruction: {c.instructions})"
+        for c in self.instruction_list:
+            itemhumainreadable = f"(ID: {c.instruction_id}, Command: {c.command}, StartLine: {c.start_line}, EndLine: {c.end_line}, Stage: {c.stage_infos}, Instruction: {c.instruction_text})"
             export = f"{export}, {itemhumainreadable}"
         return export
 
 
-    def add_cmd(self, command:CommandLine):
-        """Add new command line"""
-        self.cmdlist.append(command)
+    def add_instruction(self, instruction: DockerfileInstruction):
+        """Append a newly parsed instruction to the list"""
+        self.instruction_list.append(instruction)
 
-    def update_item(self, uid, endline, instructions):
-        """Edit an existing command"""
-        for i in self.cmdlist:
-            if uid == i.uid:
-                i.endline = endline
-                newinstruction = f"{i.instructions} {instructions}"
-                i.instructions = newinstruction
+    def update_instruction(self, instruction_id, end_line, add_extras):
+        """Extend an existing instruction with the next physical line."""
+        for i in self.instruction_list:
+            if instruction_id == i.instruction_id:
+                i.end_line = end_line
+                updated_text = f"{i.instruction_text} {add_extras}"
+                i.instruction_text = updated_text
                 return 1
         print("Item not found in command list")
 
-    def check_cmd_details(self, uid):
-        """Show an existing record command"""
-        for u in self.cmdlist:
-            if uid == u.uid:
-                return print(f"ID: {u.uid}, Command: {u.cmd}, StartLine: {u.startline}, Endline: {u.endline}, Stage: {u.stage}, Instruction: {u.instructions}")
+    def print_instruction_details(self, instruction_id):
+        """Print one instruction's details"""
+        for u in self.instruction_list:
+            if instruction_id == u.instruction_id:
+                return print(f"ID: {u.instruction_id}, Command: {u.command}, StartLine: {u.start_line}, Endline: {u.end_line}, Stage: {u.stage_infos}, Instruction: {u.instruction_text}")
         print("Item not found in command list")
 
-    def show_all(self):
-        """Show all existing record command"""
-        for c in self.cmdlist:
-            print(f"(ID: {c.uid}, Command: {c.cmd}, StartLine: {c.startline}, EndLine: {c.endline}, Stage: {c.stage}, Instruction: {c.instructions})")
+    def print_all_instructions(self):
+        """Print every parsed instruction"""
+        for c in self.instruction_list:
+            print(f"(ID: {c.instruction_id}, Command: {c.command}, StartLine: {c.start_line}, EndLine: {c.end_line}, Stage: {c.stage_infos}, Instruction: {c.instruction_text})")
 
 
 
-def parser(file):
-    """Read Dockerfile line by line and get instructions"""
-    parsing_lines = ParsingFile()
+def parse_dockerfile(file_path):
+    """Read a Dockerfile line by line
+    (merge line-continued (`\\`) instructions back together)."""
+    parse_result = DockerfileParsed()
     try:
-        with open(file, "r", encoding="utf-8") as f:
-            linenumber = 0
-            stagenumber = 0
-            stageid = 0
-            step_uid = 0
+        with open(file_path, "r", encoding="utf-8") as f:
+            line_number = 0
+            stage_number = 0
+            stage_start_id = 0
+            instruction_id = 0
             for line in f:
-                linenumber += 1
-                linestrip = line.rstrip()
-                # print(f"Processing line number: {linenumber} in the Dockerfile")
-                # print(f"Processing line: {linestrip}")
+                line_number += 1
+                stripped_line = line.rstrip()
 
                 # Remove COMMENT and blank lines
-                if linestrip.startswith("#") or linestrip == "":
+                if stripped_line.startswith("#") or stripped_line == "":
                     continue
                 # Remove "not end" line mark
-                if linestrip.endswith(" \\"):
-                    linestrip = linestrip.rstrip("\\")
+                if stripped_line.endswith(" \\"):
+                    stripped_line = stripped_line.rstrip("\\")
 
-                for command in DockerCommand.listkeys():
-                    if linestrip.startswith(command):
-                        cmd = command
+                for command_name in DockerCommand.listkeys():
+                    if stripped_line.startswith(command_name):
+                        matched_command = command_name
                         break
-                    cmd = None
-                if cmd is not None and cmd == "FROM":
-                    stagenumber += 1
-                    stageid = step_uid
-                if cmd is not None:
-                    stagecontant = {"StageNumber":stagenumber, "StageStartAtID":stageid }
-                    commandtoadd = CommandLine(uid=step_uid, cmd=cmd, startline=linenumber, endline=linenumber, stage=stagecontant, instructions=linestrip)
-                    parsing_lines.add_cmd(commandtoadd)
-                    # parsing_lines.check_cmd_details(uid=step_uid)
-                    step_uid += 1
+                    matched_command = None
+                if matched_command is not None and matched_command == "FROM":
+                    stage_number += 1
+                    stage_start_id = instruction_id
+                if matched_command is not None:
+                    build_stage_infos = {"StageNumber": stage_number, "StageStartAtID": stage_start_id}
+                    new_instruction = DockerfileInstruction(instruction_id=instruction_id, command=matched_command, start_line=line_number, end_line=line_number, stage_infos=build_stage_infos, instruction_text=stripped_line)
+                    parse_result.add_instruction(new_instruction)
+                    # parse_result.print_instruction_details(instruction_id=instruction_id)
+                    instruction_id += 1
                 else:
-                    preview_step_uid=step_uid-1
-                    parsing_lines.update_item(uid=preview_step_uid, endline=linenumber, instructions=linestrip)
-                    # parsing_lines.check_cmd_details(uid=preview_step_uid)
+                    previous_instruction_id = instruction_id - 1
+                    parse_result.update_instruction(instruction_id=previous_instruction_id, end_line=line_number, add_extras=stripped_line)
+                    # parse_result.print_instruction_details(instruction_id=previous_instruction_id)
     except FileNotFoundError:
         print("The file was not found.")
     except PermissionError:
         print("You don't have permission to access this file.")
 
-    return parsing_lines
+    return parse_result
