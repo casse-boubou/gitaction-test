@@ -31,11 +31,14 @@ runs:
 
     - name: print directory
       shell: bash
-      run: ls -l $GITHUB_PATH
-
-    - name: print directory
-      shell: bash
       run: ls -l $GITHUB_ACTION_PATH/src/scripts
+
+    - name: Run the check
+      id: check
+      shell: bash
+      env:
+        DOCKERFILE: ${{ inputs.dockerfile }}
+      run: python "${{ github.action_path }}/src/main.py" "$GITHUB_WORKSPACE/${{ inputs.dockerfile }}"
 
     - name: Exit action
       shell: bash
