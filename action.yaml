@@ -32,7 +32,3 @@ runs:
       env:
         DOCKERFILE: ${{ inputs.dockerfile }}
       run: python "${{ github.action_path }}/src/main.py" "$GITHUB_WORKSPACE/$DOCKERFILE"
-
-    - name: Exit action
-      shell: bash
-      run: exit ${{steps.check.outputs.statuscode}}
