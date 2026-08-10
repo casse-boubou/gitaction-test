@@ -7,10 +7,7 @@ inputs:
     required: true
     default: ""
 branding:
-  # icon: "terminal"
-  # color: "gray-dark"
-  icon: 'code'
-  color: 'yellow'
+  icon: 'search'
 runs:
   using: "composite"
   steps:
@@ -34,7 +31,7 @@ runs:
       shell: bash
       env:
         DOCKERFILE: ${{ inputs.dockerfile }}
-      run: python "${{ github.action_path }}/src/main.py" "$GITHUB_WORKSPACE/${{ inputs.dockerfile }}"
+      run: python "${{ github.action_path }}/src/main.py" "$GITHUB_WORKSPACE/$DOCKERFILE"
 
     - name: Exit action
       shell: bash
