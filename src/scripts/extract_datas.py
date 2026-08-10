@@ -25,9 +25,8 @@ def dig_into_image(source, version):
     """Search for base source of image"""
     image = f"{source}:{version}"
     # github_act_path = os.environ["GITHUB_ACTION_PATH"]
-    github_path = os.environ["GITHUB_PATH"]
-    print(subprocess.run(f"ls -l {github_path}", capture_output=True, check=True, text=True))
-    syft_cmd = ("/usr/local/bin/syft", "scan", f"{image}", "--output", "template", "--template", f"{github_path}/src/scripts/schema-latest.go")
+    github_action_path = os.environ["GITHUB_ACTION_PATH"]
+    syft_cmd = ("/usr/local/bin/syft", "scan", f"{image}", "--output", "template", "--template", f"{github_action_path}/src/scripts/schema-latest.go")
     print(f"Wait, searching for the base image of {image} in progress...")
     scan = subprocess.run(syft_cmd, capture_output=True, check=True, text=True)
     syftdata = json.loads(scan.stdout)
