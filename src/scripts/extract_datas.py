@@ -30,7 +30,7 @@ def inspect_unknown_base_image(image_name, image_tag):
     return the (distrib_id, version_id) syft detects for it."""
     image_ref = f"{image_name}:{image_tag}"
     github_action_path = (os.environ["GITHUB_ACTION_PATH"]+"/") if os.environ.get("GITHUB_ACTION_PATH", "") else ""
-    syft_location = "/usr/local/bin/syft" if os.environ.get("RUNNER_OS") else "/usr/local/Cellar/syft/1.50.0/bin/syft"
+    syft_location = "/usr/local/bin/syft" if os.environ.get("RUNNER_OS") else "/usr/local/Cellar/syft/1.51.0/bin/syft"
     syft_cmd = (syft_location, "scan", f"{image_ref}", "--output", "template", "--template", f"{github_action_path}src/scripts/schema-latest.go")
     print(f"Wait, searching for the base image of {image_ref} in progress...")
     syft_process = subprocess.run(syft_cmd, capture_output=True, check=True, text=True)

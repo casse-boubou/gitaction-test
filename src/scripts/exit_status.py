@@ -1,43 +1,43 @@
-# exit_status.py - Determine the exit status code
+# exit_status.py - Computes the action's final exit code.
 
 import os
 import sys
 from ast import literal_eval
 
 
-def dig_dataset(dataset):
-    """Determine the status code if outdated are allowed or not"""
+def collect_distro_versions(outdated_by_line):
+    """Build a {distribution_name: [version, ...]} map listing, for every
+    stage in the outdated_by_line"""
     distribution_found = {}
-    for entry in dataset.items():
-        for instruction in entry[1]:
-            if instruction[0] in distribution_found:
-                distribution_found[instruction[0]].append(instruction[1])
-            else:
-                distribution_found[instruction[0]] = []
-                distribution_found[instruction[0]].append(instruction[1])
+    for stage_entry in outdated_by_line.values():
+        if stage_entry[0] in distribution_found:
+            distribution_found[stage_entry[0]].append(stage_entry[1])
+        else:
+            distribution_found[stage_entry[0]] = []
+            distribution_found[stage_entry[0]].append(stage_entry[1])
     return distribution_found
 
 
-def determine_exit_code(dataset):
-    """Determine the status code if outdated are allowed or not"""
-    var_allowed = (os.environ["ALLOW_OUTDATED_FOR"]) if os.environ.get("ALLOW_OUTDATED_FOR", "") else "{}"
-    allow_outdated_for = literal_eval(var_allowed)
-    disallow_outdated = not allow_outdated_for
+def determine_exit_code(outdated_by_line):
+    """Compute and apply the action's final exit code."""
+    allow_outdated_for_raw = (os.environ["ALLOW_OUTDATED_FOR"]) if os.environ.get("ALLOW_OUTDATED_FOR", "") else "{}"
+    allow_outdated_for = literal_eval(allow_outdated_for_raw)
+    should_fail = not allow_outdated_for
 
-    # Search for distribution with outdated package
-    distribution_found = dig_dataset(dataset)
+    # List every distribution/version referenced by a pinned package
+    distribution_found = collect_distro_versions(outdated_by_line)
 
-    # Compare distribution with outdated and allowed list
-    for key, values in allow_outdated_for.items():
-        for value in values:
-            if str(key).lower() in str(distribution_found).lower() and str(value).lower() in str(distribution_found[key]).lower():
-                distribution_found[key].remove(str(value).lower())
-    for value in distribution_found.values():
-        if value:
-            disallow_outdated = True
+    # Remove whitelisted distribution/version pairs, so only non-whitelisted ones remain
+    for whitelisted_distro, whitelisted_versions in allow_outdated_for.items():
+        for white_version in whitelisted_versions:
+            if str(whitelisted_distro).lower() in str(distribution_found).lower() and str(white_version).lower() in str(distribution_found[whitelisted_distro]).lower():
+                distribution_found[whitelisted_distro].remove(str(white_version).lower())
+    for remaining_versions in distribution_found.values():
+        if remaining_versions:
+            should_fail = True
 
-    # Exit with statut 1 if outdated found and no deactivation
-    if disallow_outdated:
+    # Exit 1 unless every referenced distribution/version is covered by the whitelist
+    if should_fail:
         print("exit 1")
         sys.exit(1)
     else:

@@ -23,16 +23,26 @@ For each provided `Dockerfile`, the action:
 5. **Compares** each version pinned in the `Dockerfile` to the version currently available in the official repository.
 6. **Reports the result**:
    - `***** WARNING !!...` message is displayed in the logs for each obsolete package, along with the relevant line in the `Dockerfile` and the old/new version;
-   - the job **fails** (non-zero exit code) if at least one pinned package is obsolete, and **succeeds** otherwise.
+   - the job **fails** (non-zero exit code) if at least one pinned package is obsolete, and **succeeds** otherwise except for the distributions/versions listed in the optional [`allow_outdated_for`](#allowing-certain-distributionsversions-allow_outdated_for) input, which only produce a warning.
 
 ### Distributions and Package Managers Currently Supported
 
 | Distribution | Package Manager | Direct Detection |
-|---|---|---|
-| Debian       | `apt`                   | ✅ |
-| Ubuntu       | `apt`                   | ✅ |
-| Alpine       | `apk`                   | ✅ |
-| Other       | `apt` or `apk`          | ✅ via `syft` scan of the image |
+| --- | --- | --- |
+| Debian | `apt` | ✅ |
+| Ubuntu | `apt` | ✅ |
+| Alpine | `apk` | ✅ |
+| Other | `apt` or `apk` | ✅ via `syft` scan of the image |
+
+### Allowing certain distributions/versions (`allow_outdated_for`)
+
+By default, the action fails as soon as any pinned package is outdated, regardless of the base image's distribution or version. The optional `allow_outdated_for` input disables that failure for a chosen list of distribution/version pairs: outdated packages detected there only produce a warning in the logs, without failing the job — useful, for example, for a distribution you know you'll update later, or a version that's about to be deprecated.
+
+The expected format is a string representing a Python dictionary, mapping each distribution name to the list of versions it covers:
+
+```yaml
+allow_outdated_for: "{'debian': ['12'], 'alpine': ['3.20', '3.22']}"
+```
 
 ## Prerequisites
 
@@ -45,8 +55,14 @@ For each provided `Dockerfile`, the action:
 ### Required
 
 | Name | Description |
-|---|---|
+| --- | --- |
 | `dockerfile` | Path, relative to the repository root (`$GITHUB_WORKSPACE`), to the `Dockerfile` to be analyzed. |
+
+### Optional
+
+| Name | Description | Default |
+| --- | --- | --- |
+| `allow_outdated_for` | Whitelist of distributions/versions whose outdated packages don't fail the job (see [Allowing certain distributions/versions](#allowing-certain-distributionsversions-allow_outdated_for)). Python dict-literal string, e.g. `{'debian': ['12'], 'alpine': ['3.20', '3.22']}`. | `""` (no distribution covered) |
 
 ## Secrets Used
 
@@ -57,11 +73,12 @@ No secrets are required by the action.
 ## Environment Variables Used
 
 | Variable | Source | Role |
-|---|---|---|
+| --- | --- | --- |
 | `GITHUB_WORKSPACE` | Automatically provided by the GitHub Actions runner | Used to construct the absolute path to the `Dockerfile` from the `dockerfile` input. |
 | `GITHUB_ACTION_PATH` | Automatically provided by the GitHub Actions runner | Used to locate the action’s internal files (`requirements.txt`, `main.py`, the `schema-latest.go` template used by `syft`). |
 | `RUNNER_OS` | Automatically provided by the GitHub Actions runner | Used to determine the location of the `syft` binary on the runner. |
 | `DOCKERFILE` | Defined by the action based on the `dockerfile` input | Exposed in the `Run the check` step; however, the actual path used by the script is constructed and passed as a command-line argument. |
+| `ALLOW_OUTDATED_FOR` | Defined by the action based on the `allow_outdated_for` input | Read by `scripts/exit_status.py` to determine which distributions/versions are exempt from failing the job. |
 
 ## Example usage
 
@@ -84,11 +101,12 @@ jobs:
         uses: <owner>/<repo>@v1
         with:
           dockerfile: Dockerfile
+          allow_outdated_for: "{'debian': ['12'], 'alpine': ['3.20', '3.22']}" # OPTIONAL
 ```
 
-> Remplacez `<owner>/<repo>@v1` par le chemin et la version réels de cette action une fois publiée.
+> Replace `<owner>/<repo>@v1` with the actual path and version of this action once published.
 
-### Exemple multi-Dockerfile
+### Multi-Dockerfile example
 
 ```yaml
 jobs:

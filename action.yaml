@@ -7,7 +7,7 @@ inputs:
     required: true
     default: ""
   allow_outdated_for:
-    description: "XXXXXXXXXXXX"
+    description: "Optional whitelist of distribution/version pairs for which only produce a warning instead of failing. A dict-literal string mapping name to a list of versions, e.g. \"{'debian': ['12'], 'alpine': ['3.23']}\". (default: empty)"
     required: false
     default: ""
 branding:

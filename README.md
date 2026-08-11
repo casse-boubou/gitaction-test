@@ -23,16 +23,26 @@ Pour chaque `Dockerfile` fourni, l'action :
 5. **Compare** chaque version épinglée dans le `Dockerfile` à la version actuellement disponible dans le dépôt officiel.
 6. **Rapporte le résultat** :
    - un message `***** WARNING !!...` est affiché dans les logs pour chaque paquet obsolète, avec la ligne du `Dockerfile` concernée et l'ancienne/nouvelle version ;
-   - le job **échoue** (code de sortie non nul) si au moins un paquet épinglé est obsolète, et **réussit** sinon.
+   - le job **échoue** (code de sortie non nul) si au moins un paquet épinglé est obsolète, et **réussit** sinon sauf pour les distributions/versions listées dans l'entrée facultative [`allow_outdated_for`](#autoriser-certaines-distributionsversions-allow_outdated_for), qui n'entraînent alors qu'un avertissement.
 
 ### Distributions et gestionnaires de paquets supportés a l'heure d'aujourd'hui
 
 | Distribution | Gestionnaire de paquets | Détection directe |
-|---|---|---|
-| Debian       | `apt`                   | ✅ |
-| Ubuntu       | `apt`                   | ✅ |
-| Alpine       | `apk`                   | ✅ |
-| Autre        | `apt` ou `apk`          | ✅ via scan `syft` de l'image |
+| --- | --- | --- |
+| Debian | `apt` | ✅ |
+| Ubuntu | `apt` | ✅ |
+| Alpine | `apk` | ✅ |
+| Autre | `apt` ou `apk` | ✅ via scan `syft` de l'image |
+
+### Autoriser certaines distributions/versions (`allow_outdated_for`)
+
+Par défaut, l'action échoue dès qu'un paquet épinglé est obsolète, quelle que soit la distribution ou la version de l'image de base. L'entrée facultative `allow_outdated_for` permet de désactiver cet échec pour une liste choisie de couples distribution/version : les paquets obsolètes détectés dessus ne produisent plus qu'un avertissement dans les logs, sans faire échouer le job — utile par exemple pour une distribution qu'on sait vouloir mettre à jour plus tard, ou une version bientôt dépréciée.
+
+Le format attendu est une chaîne représentant un dictionnaire Python, associant chaque nom de distribution à la liste des versions à couvrir :
+
+```yaml
+allow_outdated_for: "{'debian': ['12'], 'alpine': ['3.20', '3.22']}"
+```
 
 ## Prérequis
 
@@ -45,8 +55,14 @@ Pour chaque `Dockerfile` fourni, l'action :
 ### Obligatoires
 
 | Nom | Description |
-|---|---|
+| --- | --- |
 | `dockerfile` | Chemin, relatif à la racine du dépôt (`$GITHUB_WORKSPACE`), du `Dockerfile` à analyser. |
+
+### Facultatives
+
+| Nom | Description | Défaut |
+| --- | --- | --- |
+| `allow_outdated_for` | Liste blanche de distributions/versions dont les paquets obsolètes ne font pas échouer le job (voir [Autoriser certaines distributions/versions](#autoriser-certaines-distributionsversions-allow_outdated_for)). Chaîne au format dictionnaire Python, ex. `{'debian': ['12'], 'alpine': ['3.20', '3.22']}`. | `""` (aucune distribution couverte) |
 
 ## Secrets utilisés
 
@@ -57,11 +73,12 @@ Aucun secret n'est requis par l'action.
 ## Variables d'environnement utilisées
 
 | Variable | Origine | Rôle |
-|---|---|---|
+| --- | --- | --- |
 | `GITHUB_WORKSPACE` | Fournie automatiquement par le runner GitHub Actions | Utilisée pour construire le chemin absolu du `Dockerfile` à partir de l'entrée `dockerfile`. |
 | `GITHUB_ACTION_PATH` | Fournie automatiquement par le runner GitHub Actions | Utilisée pour localiser les fichiers internes de l'action (`requirements.txt`, `main.py`, le template `schema-latest.go` utilisé par `syft`). |
 | `RUNNER_OS` | Fournie automatiquement par le runner GitHub Actions | Utilisée pour déterminer l'emplacement du binaire `syft` sur le runner. |
 | `DOCKERFILE` | Définie par l'action à partir de l'entrée `dockerfile` | Exposée à l'étape `Run the check` ; le chemin effectif utilisé par le script est cependant construit et transmis en argument de ligne de commande. |
+| `ALLOW_OUTDATED_FOR` | Définie par l'action à partir de l'entrée `allow_outdated_for` | Lue par `scripts/exit_status.py` pour déterminer les distributions/versions exemptées de faire échouer le job. |
 
 ## Exemple d'utilisation
 
@@ -84,6 +101,7 @@ jobs:
         uses: <owner>/<repo>@v1
         with:
           dockerfile: Dockerfile
+          allow_outdated_for: "{'debian': ['12'], 'alpine': ['3.20', '3.22']}"  # OPTIONNEL
 ```
 
 > Remplacez `<owner>/<repo>@v1` par le chemin et la version réels de cette action une fois publiée.

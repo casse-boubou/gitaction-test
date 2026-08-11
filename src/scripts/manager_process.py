@@ -34,5 +34,5 @@ def find_all_outdated_packages(dataset):
             pinned_packages = stage_entry[2]
             distrib_module = importlib.import_module(f"distros.{distrib_name}")
             outdated_for_stage = distrib_module.find_outdated_packages(distrib_name, distrib_version, pinned_packages)
-            all_outdated_packages[stage_entry[4]] = outdated_for_stage
+            all_outdated_packages[stage_entry[4]] = [distrib_name, distrib_version, outdated_for_stage]
     return all_outdated_packages
