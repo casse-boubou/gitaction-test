@@ -6,6 +6,10 @@ inputs:
     description: "Path, relative to the repository root ($GITHUB_WORKSPACE), of the Dockerfile to analyse."
     required: true
     default: ""
+  allow_outdated_for:
+    description: "XXXXXXXXXXXX"
+    required: false
+    default: ""
 branding:
   icon: 'search'
 runs:
@@ -31,4 +35,5 @@ runs:
       shell: bash
       env:
         DOCKERFILE: ${{ inputs.dockerfile }}
+        ALLOW_OUTDATED_FOR: ${{ inputs.allow_outdated_for }}
       run: python "${{ github.action_path }}/src/main.py" "$GITHUB_WORKSPACE/$DOCKERFILE"

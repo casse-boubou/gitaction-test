@@ -4,6 +4,7 @@
 
 import sys
 
+from scripts.exit_status import determine_exit_code
 from scripts.extract_datas import extract_dataset
 from scripts.manager_process import (
     download_all_package_indexes,
@@ -36,5 +37,6 @@ if __name__ == "__main__":
             for package_name, versions in outdated_packages.items():
                 print(f"***** Stage start at line {start_line}, {package_name}: {versions[0]} -> {versions[1]}")
                 # continue
-    if show_warning is False:
-        sys.exit(1)
+
+    # Determine exit status code
+    determine_exit_code(dataset)
