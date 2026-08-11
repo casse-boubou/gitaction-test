@@ -10,6 +10,8 @@ def collect_distro_versions(outdated_by_line):
     stage in the outdated_by_line"""
     distribution_found = {}
     for stage_entry in outdated_by_line.values():
+        if not stage_entry[2]:
+            continue
         if stage_entry[0] in distribution_found:
             distribution_found[stage_entry[0]].append(stage_entry[1])
         else:
@@ -22,7 +24,7 @@ def determine_exit_code(outdated_by_line):
     """Compute and apply the action's final exit code."""
     allow_outdated_for_raw = (os.environ["ALLOW_OUTDATED_FOR"]) if os.environ.get("ALLOW_OUTDATED_FOR", "") else "{}"
     allow_outdated_for = literal_eval(allow_outdated_for_raw)
-    should_fail = not allow_outdated_for
+    should_fail = False
 
     # List every distribution/version referenced by a pinned package
     distribution_found = collect_distro_versions(outdated_by_line)
