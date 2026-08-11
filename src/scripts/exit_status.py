@@ -2,6 +2,7 @@
 
 import os
 import sys
+from ast import literal_eval
 
 
 def dig_dataset(dataset):
@@ -19,8 +20,8 @@ def dig_dataset(dataset):
 
 def determine_exit_code(dataset):
     """Determine the status code if outdated are allowed or not"""
-    allow_outdated_for = (os.environ["ALLOW_OUTDATED_FOR"]) if os.environ.get("ALLOW_OUTDATED_FOR", "") else {}
-    print(allow_outdated_for)
+    var_allowed = (os.environ["ALLOW_OUTDATED_FOR"]) if os.environ.get("ALLOW_OUTDATED_FOR", "") else "{}"
+    allow_outdated_for = literal_eval(var_allowed)
     disallow_outdated = not allow_outdated_for
 
     # Search for distribution with outdated package
